@@ -1,0 +1,11 @@
+alter table public.contact_enquiries add column if not exists idempotency_key text unique;
+alter table public.catering_enquiries add column if not exists idempotency_key text unique;
+alter table public.partnership_applications add column if not exists idempotency_key text unique;
+alter table public.partnership_applications add column if not exists consent_version text not null default 'v1';
+alter table public.partnership_applications add column if not exists consent_at timestamptz not null default now();
+create table if not exists public.enquiry_rate_limits (bucket text primary key, window_started_at timestamptz not null, submission_count integer not null default 0 check (submission_count >= 0));
+alter table public.enquiry_rate_limits enable row level security;
+revoke all on public.enquiry_rate_limits from anon, authenticated;
+create index if not exists contact_enquiry_status_idx on public.contact_enquiries(status, created_at desc);
+create index if not exists catering_enquiry_status_idx on public.catering_enquiries(status, created_at desc);
+create index if not exists partnership_status_idx on public.partnership_applications(status, created_at desc);
