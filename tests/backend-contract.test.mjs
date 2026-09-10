@@ -20,8 +20,9 @@ test('frontend configuration cannot contain privileged keys', async () => {
 
 test('order edge function recalculates totals from database prices', async () => {
   const fn = await read('supabase/functions/create-order/index.ts');
-  assert.match(fn, /from\('products'\)/);
-  assert.match(fn, /price_kobo/);
+  const transaction = await read('supabase/migrations/20260910001400_atomic_order_creation.sql');
+  assert.match(fn, /create_order_transaction/);
+  assert.match(transaction, /price_kobo/);
   assert.match(fn, /idempotency-key/);
-  assert.match(fn, /is_available/);
+  assert.match(transaction, /is_available/);
 });

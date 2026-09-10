@@ -1,7 +1,7 @@
 alter table public.payment_attempts add column if not exists provider_transaction_id bigint;
 alter table public.payment_attempts add column if not exists failure_code text;
 alter table public.payment_attempts add column if not exists last_verified_at timestamptz;
-create unique index if not exists payment_one_active_attempt_idx on public.payment_attempts(order_id) where status in ('created', 'redirected', 'pending');
+create unique index if not exists payment_one_active_attempt_idx on public.payment_attempts(order_id) where status in ('created', 'redirected');
 create table if not exists public.payment_exceptions (
   id uuid primary key default gen_random_uuid(), provider text not null, provider_reference text not null, order_id uuid references public.orders(id) on delete set null, reason text not null, payload jsonb not null default '{}', resolved_at timestamptz, created_at timestamptz not null default now(), unique (provider, provider_reference, reason)
 );

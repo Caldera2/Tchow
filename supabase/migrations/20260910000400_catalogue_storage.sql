@@ -33,13 +33,6 @@ on conflict (id) do update set public = excluded.public;
 grant select on public.product_images to anon, authenticated;
 grant insert, update, delete on public.product_images to authenticated;
 
-create policy "Published catalogue images are public" on storage.objects for select to anon, authenticated
-using (bucket_id = 'catalogue-images' and exists (
-  select 1 from public.product_images image
-  join public.products product on product.id = image.product_id
-  where image.storage_path = name and product.status = 'published'
-));
-
 create policy "Menu staff upload catalogue images" on storage.objects for insert to authenticated
 with check (bucket_id = 'catalogue-images' and (select public.has_staff_permission('manage_menu')) and name ~ '^[0-9a-f-]{36}/[a-z0-9-]+\\.(jpg|jpeg|png|webp)$');
 create policy "Menu staff replace catalogue images" on storage.objects for update to authenticated

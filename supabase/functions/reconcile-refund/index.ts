@@ -1,0 +1,14 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type,apikey,x-client-info' };
+const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers }); if (req.method !== 'POST') return out({ error: { code: 'method_not_allowed' } }, 405);
+  const url = Deno.env.get('SUPABASE_URL'); const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'); const paystackKey = Deno.env.get('PAYSTACK_SECRET_KEY'); if (!url || !serviceKey || !paystackKey) return out({ error: { code: 'server_not_configured' } }, 503);
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } }); const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, ''); const actor = token ? (await admin.auth.getUser(token)).data.user : null; if (!actor) return out({ error: { code: 'unauthorized' } }, 401);
+  const staff = await admin.from('staff_members').select('user_id,is_active,staff_permissions!inner(permission)').eq('user_id', actor.id).eq('is_active', true).eq('staff_permissions.permission', 'manage_payments').maybeSingle(); if (!staff.data) return out({ error: { code: 'forbidden' } }, 403);
+  let body: any; try { body = await req.json(); } catch { return out({ error: { code: 'invalid_json' } }, 400); }
+  const refund = await admin.from('refunds').select('id,status,provider_refund_reference').eq('id', body.refundId).maybeSingle(); if (refund.error || !refund.data) return out({ error: { code: 'not_found' } }, 404); if (!refund.data.provider_refund_reference) return out({ error: { code: 'provider_reference_missing' } }, 409);
+  const response = await fetch(`https://api.paystack.co/refund/${encodeURIComponent(refund.data.provider_refund_reference)}`, { headers: { Authorization: `Bearer ${paystackKey}` } }); let provider: any = {}; try { provider = await response.json(); } catch { /* keep reconciliation failure explicit */ }
+  if (!response.ok || !provider.status) return out({ error: { code: 'reconciliation_pending' } }, 502);
+  const status = provider.data?.status === 'processed' ? 'successful' : ['failed', 'cancelled'].includes(provider.data?.status) ? 'failed' : 'pending'; const applied = await admin.rpc('apply_refund_provider_result', { p_refund_id: refund.data.id, p_status: status, p_provider_refund_reference: refund.data.provider_refund_reference, p_provider_status: provider.data?.status || 'pending', p_failure_reason: status === 'failed' ? 'provider_refund_failed' : null }); if (applied.error) return out({ error: { code: 'reconciliation_failed' } }, 500); return out({ result: applied.data });
+});

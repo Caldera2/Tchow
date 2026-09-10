@@ -1,0 +1,26 @@
+alter table public.contact_enquiries drop constraint if exists contact_enquiries_status_check;
+alter table public.contact_enquiries add constraint contact_enquiries_status_check check (status in ('new', 'reviewing', 'resolved', 'spam'));
+
+drop policy if exists "Admins read catering enquiries" on public.catering_enquiries;
+drop policy if exists "Admins update catering enquiries" on public.catering_enquiries;
+drop policy if exists "Staff reads enquiries" on public.contact_enquiries;
+drop policy if exists "Staff reads catering" on public.catering_enquiries;
+drop policy if exists "Public reads business settings" on public.public_business_settings;
+drop policy if exists "Public contact submission" on public.contact_enquiries;
+drop policy if exists "Public catering submission" on public.catering_enquiries;
+drop policy if exists "Anyone may submit catering enquiry" on public.catering_enquiries;
+drop policy if exists "Settings permission manages public settings" on public.public_business_settings;
+drop policy if exists "Settings permission manages operational settings" on public.operational_settings;
+drop policy if exists "Contact permission reads enquiries" on public.contact_enquiries;
+drop policy if exists "Catering permission reads enquiries" on public.catering_enquiries;
+drop policy if exists "Partnership permission reads applications" on public.partnership_applications;
+drop policy if exists "Settings permission reads operational settings" on public.operational_settings;
+drop policy if exists "Catering permission updates enquiries" on public.catering_enquiries;
+drop policy if exists "Contact permission updates enquiries" on public.contact_enquiries;
+revoke update on public.contact_enquiries, public.catering_enquiries, public.partnership_applications from authenticated;
+revoke all on public.contact_enquiries, public.catering_enquiries, public.partnership_applications, public.operational_settings from anon, authenticated;
+grant select on public.contact_enquiries, public.catering_enquiries, public.partnership_applications to authenticated;
+create policy "Contact permission reads enquiries" on public.contact_enquiries for select to authenticated using ((select public.has_staff_permission('manage_contact')));
+create policy "Catering permission reads enquiries" on public.catering_enquiries for select to authenticated using ((select public.has_staff_permission('manage_catering')));
+create policy "Partnership permission reads applications" on public.partnership_applications for select to authenticated using ((select public.has_staff_permission('manage_partnerships')));
+create policy "Settings permission reads operational settings" on public.operational_settings for select to authenticated using ((select public.has_staff_permission('manage_settings')));

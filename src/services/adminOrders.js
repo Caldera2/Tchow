@@ -8,3 +8,4 @@ export async function listAdminOrders({ page = 0, pageSize = 20, search = '', st
 }
 export async function transitionOrder(payload) { const client = requireSupabase(); const { data, error } = await client.functions.invoke('transition-order', { body: payload }); if (error) throw error; return data; }
 export async function requestRefund(payload) { const client = requireSupabase(); const { data, error } = await client.functions.invoke('request-refund', { body: payload }); if (error) throw error; return data; }
+export async function reconcileRefund(refundId) { const client = requireSupabase(); const { data, error } = await client.functions.invoke('reconcile-refund', { body: { refundId } }); if (error) throw error; return data; }

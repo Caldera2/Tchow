@@ -1,5 +1,3 @@
-alter type public.staff_role add value if not exists 'owner';
-
 alter table public.staff_permissions drop constraint if exists staff_permissions_permission_check;
 alter table public.staff_permissions add constraint staff_permissions_permission_check check (permission in ('manage_menu', 'manage_orders', 'manage_delivery', 'manage_catering', 'manage_contact', 'manage_partnerships', 'manage_settings', 'manage_staff', 'manage_financial', 'view_audit'));
 
@@ -18,6 +16,7 @@ as $$
     left join public.staff_permissions permission on permission.staff_user_id = member.user_id
     where member.user_id = (select auth.uid())
       and member.is_active
+      and coalesce((select auth.jwt() ->> 'aal'), 'aal1') = 'aal2'
       and (member.role = 'owner' or permission.permission = required_permission)
   );
 $$;

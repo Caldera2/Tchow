@@ -1,4 +1,3 @@
-alter type public.order_status add value if not exists 'dispatched';
 alter table public.order_status_history add column if not exists reason text;
 alter table public.order_status_history add column if not exists idempotency_key text unique;
 alter table public.refunds add column if not exists status text not null default 'requested' check (status in ('requested','pending','successful','failed'));

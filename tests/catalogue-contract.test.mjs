@@ -38,19 +38,21 @@ test('catalogue upload validates bytes and cleans up failed records', async () =
 test('box quotes validate composition and are revalidated before ordering', async () => {
   const quote = await read('supabase/functions/quote-box/index.ts');
   const order = await read('supabase/functions/create-order/index.ts');
+  const transaction = await read('supabase/migrations/20260910001400_atomic_order_creation.sql');
   assert.match(quote, /allowance_mismatch/);
   assert.match(quote, /component_not_allowed/);
   assert.match(quote, /expiresAt/);
   assert.match(quote, /configuration_version/);
-  assert.match(order, /quote_expired_or_invalid/);
-  assert.match(order, /quote_stale/);
-  assert.match(order, /box_configuration_unavailable/);
+  assert.match(transaction, /quote_invalid/);
+  assert.match(transaction, /quote_stale/);
+  assert.match(transaction, /configuration_version/);
 });
 
 test('delivery eligibility is configured and server validated', async () => {
   const migration = await read('supabase/migrations/20260910000600_delivery_eligibility.sql');
   const delivery = await read('supabase/functions/validate-delivery/index.ts');
   const order = await read('supabase/functions/create-order/index.ts');
+  const transaction = await read('supabase/migrations/20260910001400_atomic_order_creation.sql');
   assert.match(migration, /delivery_service_areas/);
   assert.match(migration, /fee_kobo integer/);
   assert.match(migration, /delivery_time_slots/);
@@ -59,8 +61,8 @@ test('delivery eligibility is configured and server validated', async () => {
   assert.match(delivery, /unsupported_delivery_selection/);
   assert.match(delivery, /delivery_closed/);
   assert.match(delivery, /outside_operating_schedule/);
-  assert.match(order, /delivery_service_area_id/);
-  assert.match(order, /deliveryZone\.fee_kobo/);
+  assert.match(transaction, /delivery_service_area_id/);
+  assert.match(transaction, /v_delivery_fee := v_zone\.fee_kobo/);
 });
 
 test('Paystack payments stay server controlled and idempotent', async () => {

@@ -1,3 +1,6 @@
+/* Legacy prototype migration. The normalized schema starts in 20260910000200.
+   This file is intentionally inert for clean installs. */
+/*
 create extension if not exists pgcrypto;
 
 create type public.app_role as enum ('customer', 'admin');
@@ -149,3 +152,4 @@ create policy "Admins update catering enquiries" on public.catering_enquiries fo
 create policy "Anyone may submit partnership application" on public.partnership_applications for insert to anon, authenticated with check (consent_at is not null);
 create policy "Admins read partnership applications" on public.partnership_applications for select to authenticated using ((select public.is_admin()));
 create policy "Admins update partnership applications" on public.partnership_applications for update to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+*/

@@ -1,17 +1,12 @@
 create extension if not exists pgcrypto;
 
-drop function if exists public.handle_new_user() cascade;
-drop function if exists public.is_admin() cascade;
-drop table if exists public.order_items, public.orders, public.products, public.profiles, public.catering_enquiries, public.partnership_applications cascade;
-drop type if exists public.app_role cascade;
-drop type if exists public.order_status cascade;
-drop type if exists public.payment_status cascade;
-drop type if exists public.catering_status cascade;
-drop type if exists public.partnership_status cascade;
+-- Clean installs begin with this normalized schema. Existing schemas must use
+-- a reviewed forward upgrade; no customer, order, payment, or enquiry records
+-- are dropped here.
 
-create type public.staff_role as enum ('manager', 'operator', 'fulfilment', 'finance', 'support');
+create type public.staff_role as enum ('owner', 'manager', 'operator', 'fulfilment', 'finance', 'support');
 create type public.product_status as enum ('draft', 'published', 'archived');
-create type public.order_status as enum ('draft', 'received_for_review', 'confirmed', 'preparing', 'ready_for_dispatch', 'completed', 'cancelled');
+create type public.order_status as enum ('draft', 'received_for_review', 'confirmed', 'preparing', 'ready_for_dispatch', 'dispatched', 'completed', 'cancelled');
 create type public.payment_status as enum ('pending', 'processing', 'paid', 'failed', 'refunded', 'partially_refunded');
 create type public.payment_attempt_status as enum ('created', 'redirected', 'abandoned', 'successful', 'failed');
 create type public.catering_status as enum ('new', 'reviewing', 'contacted', 'quoted', 'confirmed', 'closed');

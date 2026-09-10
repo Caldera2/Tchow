@@ -23,6 +23,7 @@ export const addressRepository = {
 
 export const orderRepository = {
   async list({ page = 0, pageSize = 20 } = {}) { const { data, count, error } = await requireSupabase().from('orders').select('*, order_items(*)', { count: 'exact' }).order('created_at', { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1); if (error) throw error; return { data, count }; },
+  async get(id) { const { data, error } = await requireSupabase().from('orders').select('*, order_items(*)').eq('id', id).maybeSingle(); if (error) throw error; return data; },
 };
 
 export const enquiryRepository = {
