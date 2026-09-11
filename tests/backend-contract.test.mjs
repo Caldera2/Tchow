@@ -26,3 +26,9 @@ test('order edge function recalculates totals from database prices', async () =>
   assert.match(fn, /idempotency-key/);
   assert.match(transaction, /is_available/);
 });
+
+test('foreign-key access paths are indexed', async () => {
+  const sql = await read('supabase/migrations/20260910002800_add_missing_fk_indexes.sql');
+  assert.match(sql, /catering_enquiries_user_id_idx[\s\S]*catering_enquiries \(user_id\)/);
+  assert.match(sql, /order_items_product_id_idx[\s\S]*order_items \(product_id\)/);
+});
