@@ -35,12 +35,12 @@ Deno.serve(async (req) => {
   const endIso = end.toISOString();
   const errors: string[] = [];
 
-  const count = async (query: Promise<{ count: number | null; error: { message?: string } | null }>) => {
+  const count = async (query: any) => {
     const result = await query;
     if (result.error) errors.push(result.error.message || 'count query failed');
     return result.count || 0;
   };
-  const rows = async <T>(query: Promise<{ data: T[] | null; error: { message?: string } | null }>) => {
+  const rows = async <T>(query: any) => {
     const result = await query;
     if (result.error) errors.push(result.error.message || 'row query failed');
     return result.data || [];
