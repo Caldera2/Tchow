@@ -13,3 +13,12 @@ additional_redirect_urls = ["http://localhost:5173"]
 
 [storage]
 enabled = true
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.notification-provider-webhook]
+verify_jwt = false
+
+[functions.process-notifications]
+verify_jwt = false

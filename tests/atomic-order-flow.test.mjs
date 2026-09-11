@@ -19,6 +19,11 @@ test('order creation is delegated to one locked database transaction', async () 
   assert.match(migration, /notification_outbox/);
   assert.match(migration, /status = 'consumed'/);
   assert.match(migration, /status = 'reserved'.*or r\.status = 'consumed'/s);
+  const lifecycle = await read('supabase/migrations/20260910002000_delivery_reservation_lifecycle.sql');
+  assert.match(lifecycle, /expire_delivery_reservations/);
+  assert.match(lifecycle, /release_delivery_reservation/);
+  assert.match(lifecycle, /late_payment_after_reservation_expiry/);
+  assert.match(lifecycle, /consume_paid_delivery_reservation/);
 });
 
 test('checkout keeps one retry key for identical contents', async () => {

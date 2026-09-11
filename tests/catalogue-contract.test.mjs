@@ -88,6 +88,7 @@ test('admin order workflows enforce transitions and refund safeguards server-sid
   const migration = await read('supabase/migrations/20260910000800_operational_order_workflows.sql');
   const transition = await read('supabase/functions/transition-order/index.ts');
   const refund = await read('supabase/functions/request-refund/index.ts');
+  const authz = await read('supabase/functions/_shared/authorize-staff.ts');
   const service = await read('src/services/adminOrders.js');
   assert.match(migration, /invalid_transition/);
   assert.match(migration, /payment_required/);
@@ -95,10 +96,13 @@ test('admin order workflows enforce transitions and refund safeguards server-sid
   assert.match(migration, /notification_outbox/);
   assert.match(migration, /refund_exceeds_payment/);
   assert.match(migration, /requested/);
-  assert.match(transition, /staff_members/);
+  assert.match(transition, /authorizeStaff/);
   assert.match(transition, /transition_order/);
   assert.match(refund, /request_order_refund/);
-  assert.match(refund, /finance/);
+  assert.match(refund, /manage_financial/);
+  assert.doesNotMatch(refund, /manage_payments/);
+  assert.match(refund, /sk_test_/);
+  assert.match(authz, /aal2/);
   assert.match(transition, /manage_orders/);
   assert.match(service, /range\(page \* pageSize/);
 });
@@ -111,7 +115,7 @@ test('notification delivery uses a transactional outbox with claims and bounded 
   assert.match(migration, /skip locked/);
   assert.match(migration, /notification_templates/);
   assert.match(worker, /max_attempts/);
-  assert.match(worker, /Math\.pow\(2,job\.attempts\)/);
+  assert.match(worker, /2 \*\* Math\.max/);
   assert.match(worker, /Idempotency-Key/);
   assert.match(callback, /invalid_signature/);
   assert.match(callback, /notification_provider_receipts/);

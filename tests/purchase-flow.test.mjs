@@ -38,6 +38,19 @@ test('purchase screens expose shared cart actions and server product identifiers
   assert.match(menu, /Optional notes/);
   assert.match(home, /normalizeCartItem/);
   assert.match(app, /DatabaseMenu add={addToCart}/);
-  assert.ok(app.includes("DatabaseProductDetail id={path.split('/')[2]} add={addToCart}"));
+  assert.match(app, /<Route path="\/menu\/:productId" element=\{<DatabaseProductRoute add=\{addToCart\} \/>\}/);
+  assert.match(app, /function DatabaseProductRoute\(\{ add \}\)/);
   assert.match(checkout, /item.productId \|\| item.id/);
+});
+
+test('checkout requires an authoritative quote and stores only recovery identifiers', async () => {
+  const checkout = await read('src/orders/DatabaseCheckout.jsx');
+  const delivery = await read('supabase/functions/validate-delivery/index.ts');
+  assert.match(checkout, /serverPricing/);
+  assert.match(checkout, /Confirm revised total/);
+  assert.match(checkout, /!quoteReady/);
+  assert.match(checkout, /orderId: result\.order\.id/);
+  assert.doesNotMatch(checkout, /JSON\.stringify\(\{ number: result\.order/);
+  assert.match(delivery, /price_kobo/);
+  assert.match(delivery, /new Set\(body\.productIds\)/);
 });

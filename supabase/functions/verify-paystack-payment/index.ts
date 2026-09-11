@@ -1,9 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const h = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type' };
+const h = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, idempotency-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...h, 'Content-Type': 'application/json' } });
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: h });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: h });
   if (request.method !== 'POST') return out({ error: { code: 'method_not_allowed' } }, 405);
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'); const url = Deno.env.get('SUPABASE_URL'); const secret = Deno.env.get('PAYSTACK_SECRET_KEY');
   if (!key || !url || !secret || !secret.startsWith('sk_test_') || Deno.env.get('PAYMENTS_ENABLED') !== 'true') return out({ error: { code: 'payments_disabled', message: 'Test payments are not enabled.' } }, 503);
@@ -19,5 +19,7 @@ Deno.serve(async (request) => {
   if (!pay.ok || !result.status || !result.data) return out({ error: { code: 'verification_pending', message: 'Payment verification is still pending.' } }, 409);
   const data = result.data; const { data: applied, error: applyError } = await admin.rpc('apply_paystack_payment', { p_reference: data.reference, p_status: data.status, p_amount_kobo: data.amount, p_currency: data.currency, p_payload: data, p_event_id: `verify:${data.reference}:${data.id}`, p_provider_transaction_id: data.id || null });
   if (applyError) return out({ error: { code: 'payment_update_failed', message: 'Payment status could not be recorded. Please retry.' } }, 500);
-  return out({ payment: applied, providerStatus: data.status });
+  const snapshot = await admin.from('checkout_snapshots').select('payload').eq('order_id', attempt.order_id).maybeSingle();
+  if (snapshot.error) return out({ error: { code: 'snapshot_lookup_failed' } }, 500);
+  return out({ payment: applied, providerStatus: data.status, orderSnapshot: snapshot.data?.payload || null });
 });

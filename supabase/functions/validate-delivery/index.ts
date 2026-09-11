@@ -1,11 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { DeliveryQuote, isDeliveryRequest, dateIsPast, lagosParts, slotStartDate } from '../_shared/delivery.ts';
 
-const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type' };
+const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, idempotency-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (request.method !== 'POST') return response({ error: { code: 'method_not_allowed', message: 'Use POST.' } }, 405);
   const url = Deno.env.get('SUPABASE_URL'); const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) return response({ error: { code: 'server_not_configured', message: 'Delivery service is not configured.' } }, 503);
@@ -32,6 +32,10 @@ Deno.serve(async (request) => {
   const schedules = body.productIds.length ? await admin.from('product_delivery_schedules').select('product_id,weekday,starts_on,ends_on').in('product_id', body.productIds).eq('is_active', true) : { data: [], error: null };
   if (schedules.error) return response({ error: { code: 'product_schedule_lookup_failed', message: 'Could not validate product schedules.' } }, 500);
   for (const productId of body.productIds) { const rules = (schedules.data || []).filter((rule: any) => rule.product_id === productId); if (rules.length && !rules.some((rule: any) => (rule.weekday === null || rule.weekday === weekday) && (!rule.starts_on || body.deliveryDate >= rule.starts_on) && (!rule.ends_on || body.deliveryDate <= rule.ends_on))) return response({ error: { code: 'product_schedule_unavailable', message: 'One or more selected products are not available on the selected date.' } }, 409); }
+  const productIds = [...new Set(body.productIds)];
+  const products = productIds.length ? await admin.from('products').select('id,name,price_kobo,currency,status,is_available').in('id', productIds) : { data: [], error: null };
+  if (products.error) return response({ error: { code: 'product_quote_lookup_failed', message: 'Could not refresh catalogue prices.' } }, 500);
+  if (products.data?.length !== productIds.length || products.data.some((product: any) => product.status !== 'published' || !product.is_available || product.currency !== 'NGN')) return response({ error: { code: 'product_unavailable', message: 'One or more selected products are no longer available.' } }, 409);
   const quote: DeliveryQuote = { serviceAreaId: area.id, zoneId: zone.id, slotId: slot.id, deliveryDate: body.deliveryDate, feeKobo: zone.fee_kobo, estimatedMinutes: zone.estimated_minutes, expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
-  return response({ quote });
+  return response({ quote, products: products.data || [] });
 });

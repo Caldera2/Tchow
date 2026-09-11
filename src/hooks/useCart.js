@@ -28,12 +28,30 @@ export function normalizeCartDraft(draft) {
   }, {});
 }
 
+export function reconcileCartWithSnapshot(cart, snapshot) {
+  const purchased = Array.isArray(snapshot?.items) ? snapshot.items : [];
+  if (!purchased.length) return cart;
+  const remaining = { ...cart };
+  purchased.forEach((entry) => {
+    const baseId = entry.boxQuoteId || entry.productId;
+    if (!baseId) return;
+    const note = String(entry.notes || '').trim();
+    const key = `${baseId}::${note}`;
+    const current = remaining[key];
+    const quantity = Number(entry.quantity);
+    if (!current || !Number.isInteger(quantity) || quantity < 1) return;
+    if (current.quantity <= quantity) delete remaining[key];
+    else remaining[key] = { ...current, quantity: current.quantity - quantity };
+  });
+  return remaining;
+}
+
 const readCart = () => normalizeCartDraft(storage.get(CART_KEY, {}));
 
 export function useCart() {
   const [cart, setCart] = useState(readCart);
   useEffect(() => { storage.set(CART_KEY, cart); }, [cart]);
-  useEffect(() => { const sync = () => setCart(readCart()); window.addEventListener('storage', sync); window.addEventListener('tchow-cart-updated', sync); return () => { window.removeEventListener('storage', sync); window.removeEventListener('tchow-cart-updated', sync); }; }, []);
+  useEffect(() => { const sync = (event) => setCart(event?.detail?.snapshot ? (current) => reconcileCartWithSnapshot(current, event.detail.snapshot) : readCart()); window.addEventListener('storage', sync); window.addEventListener('tchow-cart-updated', sync); window.addEventListener('tchow-payment-confirmed', sync); return () => { window.removeEventListener('storage', sync); window.removeEventListener('tchow-cart-updated', sync); window.removeEventListener('tchow-payment-confirmed', sync); }; }, []);
 
   const add = (product, quantity = 1) => {
     const item = normalizeCartItem(product, product?.notes);

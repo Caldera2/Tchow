@@ -32,6 +32,18 @@ test('every exposed table remains RLS protected', () => {
   for (const table of tables) assert.match(schema, new RegExp(`alter table public\\.${table} enable row level security`));
 });
 
+test('RLS harness uses executable fixtures, valid claim JSON, and denial semantics', async () => {
+  const harness = await readFile(new URL('supabase/tests/rls_security.sql', root), 'utf8');
+  assert.match(harness, /insert into auth\.users/);
+  assert.match(harness, /insert into public\.products/);
+  assert.match(harness, /select set_config\('request\.jwt\.claims'/);
+  assert.doesNotMatch(harness, /(?<!select )set_config\(/);
+  assert.match(harness, /throws_ok\(\$\$select count\(\*\) from public\.operational_settings/);
+  assert.match(harness, /count\(\*\) from public\.orders where user_id/);
+  assert.match(harness, /product_images/);
+  assert.match(harness, /rollback;/);
+});
+
 test('effective permissions remove broad staff access and align customer CRUD', async () => {
   const permissions = await readFile(new URL('supabase/migrations/20260910001100_effective_permissions.sql', root), 'utf8');
   assert.match(permissions, /drop policy if exists "Staff reads enquiries"/);

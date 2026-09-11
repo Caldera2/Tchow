@@ -1,0 +1,68 @@
+name: Tchow quality gates
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: supabase/postgres:15.1.1.78
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install PostgreSQL client and pgTAP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client pgtap
+      - name: Apply migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for file in supabase/migrations/*.sql; do
+            psql "postgresql://postgres@localhost:5432/postgres" --set ON_ERROR_STOP=1 --file "$file"
+          done
+      - name: Run RLS regression harness
+        env:
+          PGPASSWORD: postgres
+        run: psql "postgresql://postgres@localhost:5432/postgres" --set ON_ERROR_STOP=1 --file supabase/tests/rls_security.sql
+
+  edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+      - name: Type-check Edge Functions
+        run: |
+          for file in supabase/functions/*/index.ts; do
+            deno check "$file"
+          done

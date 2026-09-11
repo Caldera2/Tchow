@@ -22,3 +22,15 @@ test('later migrations use enum values declared by the normalized baseline', asy
   assert.match(normalized, /order_status as enum \([^;]*'dispatched'/);
   assert.doesNotMatch(workflows, /alter type public\.(staff_role|order_status) add value/);
 });
+
+test('public catalogue policies do not evaluate protected staff tables', async () => {
+  const policies = await read('supabase/migrations/20260910001800_public_catalogue_audit_rls.sql');
+  assert.match(policies, /create policy "Public reads published products"[\s\S]*?to anon, authenticated[\s\S]*?status = 'published' and is_available = true/);
+  assert.doesNotMatch(policies.match(/create policy "Public reads published products"[\s\S]*?create policy "Catalogue staff reads all products"/)?.[0] || '', /is_staff\(|has_staff_permission\(/);
+  assert.match(policies, /create policy "Audit permission reads audit records"[\s\S]*?has_staff_permission\('view_audit'\)/);
+  assert.doesNotMatch(policies, /create policy "Staff reads audit records"/);
+  assert.match(policies, /drop policy if exists "Available products are public"/);
+  for (const block of policies.split('create policy').filter((value) => value.includes('to anon'))) {
+    assert.doesNotMatch(block.slice(0, block.indexOf('create policy') === -1 ? block.length : block.indexOf('create policy')), /is_staff\(|is_admin\(|has_staff_permission\(/);
+  }
+});

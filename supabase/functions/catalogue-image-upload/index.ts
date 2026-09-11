@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authorizeStaff, authorizationResponse } from '../_shared/authorize-staff.ts';
 
-const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
+const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, idempotency-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const validMagic = (type: string, bytes: Uint8Array) => type === 'image/jpeg' ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff : type === 'image/png' ? bytes.slice(0, 8).every((value, index) => value === [137, 80, 78, 71, 13, 10, 26, 10][index]) : type === 'image/webp' ? new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP' : false;
@@ -8,16 +9,12 @@ const validMagic = (type: string, bytes: Uint8Array) => type === 'image/jpeg' ? 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: { code: 'method_not_allowed', message: 'Use POST.' } }, 405);
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
   const url = Deno.env.get('SUPABASE_URL');
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!token || !url || !key) return json({ error: { code: 'not_configured', message: 'Image service is not configured.' } }, 503);
+  if (!url || !key) return json({ error: { code: 'not_configured', message: 'Image service is not configured.' } }, 503);
   const admin = createClient(url, key, { auth: { persistSession: false } });
-  const { data: authData } = await admin.auth.getUser(token);
-  if (!authData.user) return json({ error: { code: 'unauthorized', message: 'Sign-in required.' } }, 401);
-  const { data: member } = await admin.from('staff_members').select('user_id,is_active,role,staff_permissions(permission)').eq('user_id', authData.user.id).maybeSingle();
-  const permissions = member?.staff_permissions?.map((item: { permission: string }) => item.permission) || [];
-  if (!member?.is_active || (member.role !== 'owner' && !permissions.includes('manage_menu'))) return json({ error: { code: 'forbidden', message: 'Catalogue permission required.' } }, 403);
+  const authorization = await authorizeStaff(request, admin, 'manage_menu');
+  if ('error' in authorization) return authorizationResponse(authorization, json);
   let form: FormData;
   try { form = await request.formData(); } catch { return json({ error: { code: 'invalid_multipart', message: 'Send a multipart image upload.' } }, 400); }
   const productId = String(form.get('product_id') || '');

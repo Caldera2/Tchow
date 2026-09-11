@@ -18,9 +18,15 @@ test('staff MFA uses the supported Supabase mfa API and fails closed', async () 
 test('privileged operations require active staff authorization', async () => {
   const transition = await read('supabase/functions/transition-order/index.ts');
   const refund = await read('supabase/functions/request-refund/index.ts');
-  assert.match(transition, /staff_members/);
-  assert.match(transition, /is_active/);
+  const authz = await read('supabase/functions/_shared/authorize-staff.ts');
+  assert.match(transition, /authorizeStaff/);
+  assert.match(transition, /assuranceResponse|authorizationResponse/);
   assert.match(transition, /manage_orders/);
-  assert.match(refund, /staff_members/);
-  assert.match(refund, /is_active/);
+  assert.match(refund, /manage_financial/);
+  assert.doesNotMatch(refund, /manage_payments/);
+  assert.match(authz, /claims\?\.aal !== 'aal2'/);
+  assert.match(authz, /getUser\(token\)/);
+  assert.match(authz, /member\?\.is_active/);
+  assert.match(authz, /member\.role !== 'owner'/);
+  assert.match(authz, /authorizationResponse/);
 });

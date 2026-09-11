@@ -11,6 +11,10 @@ export async function getAdminSettings() {
   return invokeFunction('admin-settings', { action: 'read' });
 }
 
-export async function updateAdminSettings(settings) {
-  return invokeFunction('admin-settings', { action: 'update', settings });
+export async function updateAdminSettings(settings, publishKeys = []) {
+  return invokeFunction('admin-settings', { action: 'update', settings, publishKeys });
+}
+
+export async function publishAdminSettings(keys, published = true) {
+  return invokeFunction('admin-settings', { action: published ? 'publish' : 'unpublish', keys });
 }
