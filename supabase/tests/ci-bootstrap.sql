@@ -3,6 +3,21 @@
 -- that migrations and RLS policies use, without replacing platform helpers.
 create schema if not exists auth;
 
+do $$
+begin
+  if to_regclass('auth.users') is not null
+    and not exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'auth'
+        and table_name = 'users'
+        and column_name = 'email_confirmed_at'
+    ) then
+    alter table auth.users add column email_confirmed_at timestamptz;
+  end if;
+end
+$$;
+
 -- The storage image used by CI may omit the production bucket visibility
 -- column. Add it only in the test database so storage migrations exercise the
 -- same contract as a hosted Supabase project.
