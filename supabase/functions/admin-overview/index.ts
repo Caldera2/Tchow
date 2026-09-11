@@ -75,8 +75,8 @@ Deno.serve(async (req) => {
     metrics: {
       ordersToday,
       pendingOrders,
-      paidSalesKobo: paid ? paid.reduce((total, row) => total + Number(row.amount_kobo || 0), 0) : null,
-      refundsKobo: refunds ? refunds.reduce((total, row) => total + Number(row.amount_kobo || 0), 0) : null,
+      paidSalesKobo: paid ? paid.reduce((total: number, row: { amount_kobo: number }) => total + Number(row.amount_kobo || 0), 0) : null,
+      refundsKobo: refunds ? refunds.reduce((total: number, row: { amount_kobo: number }) => total + Number(row.amount_kobo || 0), 0) : null,
       cateringEnquiries: catering,
       partnershipApplications: partnerships,
     },
