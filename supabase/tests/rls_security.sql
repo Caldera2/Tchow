@@ -27,9 +27,9 @@ insert into public.audit_events (actor_id,action,entity_type,entity_id) values (
 set local role anon;
 select is((select count(*) from public.products where status='draft'),0::bigint,'anonymous cannot read draft products');
 select ok((select exists (select 1 from public.products p join public.categories c on c.id=p.category_id left join public.product_images i on i.product_id=p.id where p.status='published' and p.is_available and c.is_public and i.id is not null)),'anonymous can read published category/image joins');
-select throws_ok($$select count(*) from public.operational_settings$$,'42501','anonymous is denied operational settings');
-select throws_ok($$select count(*) from public.staff_notes$$,'42501','anonymous is denied staff notes');
-select throws_ok($$insert into public.orders (order_number,idempotency_key,customer_name,customer_email,customer_phone,delivery_address_snapshot,subtotal_kobo,delivery_fee_kobo,total_kobo) values ('BAD','BAD','Anon','anon@example.test','000','{}',1,0,1)$$,'42501','anonymous cannot insert orders');
+select throws_ok($$select count(*) from public.operational_settings$$,'42501',null,'anonymous is denied operational settings');
+select throws_ok($$select count(*) from public.staff_notes$$,'42501',null,'anonymous is denied staff notes');
+select throws_ok($$insert into public.orders (order_number,idempotency_key,customer_name,customer_email,customer_phone,delivery_address_snapshot,subtotal_kobo,delivery_fee_kobo,total_kobo) values ('BAD','BAD','Anon','anon@example.test','000','{}',1,0,1)$$,'42501',null,'anonymous cannot insert orders');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a1',true);
@@ -37,9 +37,9 @@ select set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-00000000
 select ok((select exists (select 1 from public.orders where user_id='00000000-0000-0000-0000-0000000000a1')),'customer A reads own order');
 select is((select count(*) from public.orders where user_id='00000000-0000-0000-0000-0000000000b1'),0::bigint,'customer A cannot read customer B orders');
 select is((select count(*) from public.products where status='draft'),0::bigint,'customer cannot read draft products');
-select throws_ok($$select count(*) from public.operational_settings$$,'42501','customer is denied operational settings');
+select throws_ok($$select count(*) from public.operational_settings$$,'42501',null,'customer is denied operational settings');
 select is((select count(*) from public.partnership_applications),0::bigint,'customer cannot read partnership applications');
-select throws_ok($$insert into public.staff_members (user_id,role) values ('00000000-0000-0000-0000-0000000000a1','owner')$$,'42501','customer cannot grant staff role');
+select throws_ok($$insert into public.staff_members (user_id,role) values ('00000000-0000-0000-0000-0000000000a1','owner')$$,'42501',null,'customer cannot grant staff role');
 
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',true);
 select set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-0000000000c1","role":"authenticated","aal":"aal2"}',true);
