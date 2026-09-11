@@ -36,4 +36,3 @@ export function dateIsPast(date: string, now = new Date()) {
 export function slotStartDate(date: string, time: string) {
   return new Date(`${date}T${time.slice(0, 8)}+01:00`);
 }
-
