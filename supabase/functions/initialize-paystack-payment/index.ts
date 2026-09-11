@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const h = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, idempotency-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
+const frontendOrigin = (Deno.env.get('FRONTEND_ORIGINS') || Deno.env.get('PUBLIC_APP_URL') || 'http://localhost:5173').split(',')[0].trim();
+const h = { 'Access-Control-Allow-Origin': frontendOrigin, 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, idempotency-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...h, 'Content-Type': 'application/json' } });
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: h });
@@ -19,6 +20,7 @@ Deno.serve(async (request) => {
   const { data: attempt, error: attemptError } = await admin.from('payment_attempts').insert({ order_id: order.id, provider: 'paystack', provider_reference: reference, amount_kobo: order.total_kobo, currency: order.currency, status: 'created' }).select('id,provider_reference,amount_kobo,currency,status').single();
   if (attemptError && !activeAttempt) return out({ error: { code: attemptError.code === '23505' ? 'payment_in_progress' : 'attempt_create_failed', message: 'There is already an active payment attempt for this order.' } }, 409);
   const paymentAttempt = attempt || activeAttempt;
+  if (!paymentAttempt) return out({ error: { code: 'attempt_unavailable', message: 'Could not create a payment attempt. Please retry.' } }, 409);
   const callbackUrl = Deno.env.get('PUBLIC_APP_URL');
   let pay: Response; try { pay = await fetch('https://api.paystack.co/transaction/initialize', { method: 'POST', headers: { Authorization: `Bearer ${paystack}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: order.customer_email, amount: String(order.total_kobo), currency: order.currency, reference, ...(callbackUrl ? { callback_url: `${callbackUrl}/payment-status` } : {}) }), signal: AbortSignal.timeout(10000) }); } catch { const { error: timeoutError } = await admin.from('payment_attempts').update({ failure_code: 'provider_initialization_timeout', updated_at: new Date().toISOString() }).eq('id', paymentAttempt.id); if (timeoutError) return out({ error: { code: 'attempt_update_failed' } }, 500); return out({ error: { code: 'provider_initialization_timeout', message: 'Paystack initialization timed out. Retry to resume this payment.' } }, 504); }
   const result = await pay.json();

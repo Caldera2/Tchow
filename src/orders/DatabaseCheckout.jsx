@@ -2,11 +2,22 @@ import { useEffect, useState } from 'react';
 import { createOrder } from '../services/orders';
 import { listDeliveryOptions, quoteDelivery } from '../services/delivery';
 import { initializePayment } from '../services/payments';
+import { useAuth } from '../auth/AuthContext';
 
 const paymentEnabled = import.meta.env.VITE_PAYMENTS_ENABLED === 'true';
 const money = (kobo) => `₦${(Number(kobo || 0) / 100).toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
+const checkoutFingerprint = async (payload) => {
+  try {
+    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+};
 
 export function DatabaseCheckout({ cart }) {
+  const { user } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', area: '', city: '', state: '', serviceAreaId: '', slotId: '', deliveryDate: '', instructions: '', agree: false });
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [deliveryOptions, setDeliveryOptions] = useState([]); const [deliveryError, setDeliveryError] = useState('');
@@ -46,8 +57,10 @@ export function DatabaseCheckout({ cart }) {
     setBusy(true); setError('');
     try {
       const payload = { customer: { name: form.name, email: form.email, phone: form.phone }, delivery: { address: form.address, area: form.area, city: form.city, state: form.state, serviceAreaId: form.serviceAreaId, slotId: form.slotId, deliveryDate: form.deliveryDate, instructions: form.instructions }, items: entries.map(({ item, quantity }) => ({ productId: item.boxQuoteId ? undefined : item.productId || item.id, boxQuoteId: item.boxQuoteId, quantity, notes: item.notes })) };
-      const requestFingerprint = JSON.stringify(payload); let storedAttempt = null; try { storedAttempt = JSON.parse(localStorage.getItem('tchow-checkout-attempt') || 'null'); } catch { storedAttempt = null; }
-      const idempotencyKey = storedAttempt?.fingerprint === requestFingerprint ? storedAttempt.key : crypto.randomUUID(); localStorage.setItem('tchow-checkout-attempt', JSON.stringify({ key: idempotencyKey, fingerprint: requestFingerprint }));
+      const requestFingerprint = await checkoutFingerprint(payload); let storedAttempt = null; try { storedAttempt = JSON.parse(localStorage.getItem('tchow-checkout-attempt') || 'null'); } catch { storedAttempt = null; }
+      const sameAttempt = requestFingerprint && storedAttempt?.fingerprint === requestFingerprint && storedAttempt?.userId === user?.id;
+      const idempotencyKey = sameAttempt ? storedAttempt.key : (globalThis.crypto?.randomUUID?.() || `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      try { localStorage.setItem('tchow-checkout-attempt', JSON.stringify({ key: idempotencyKey, fingerprint: requestFingerprint, userId: user?.id || null })); } catch { /* idempotency remains server-enforced */ }
       const result = await createOrder({ ...payload, idempotencyKey }); localStorage.setItem('tchow-last-order', JSON.stringify({ orderId: result.order.id, orderNumber: result.order.order_number }));
       const payment = await initializePayment(result.order.id); if (!payment?.checkoutUrl) throw new Error('Paystack did not return a checkout link.'); window.location.assign(payment.checkoutUrl);
     } catch (submitError) { setError(submitError.message || 'We could not start payment yet. Your checkout attempt is still available to retry.'); } finally { setBusy(false); }

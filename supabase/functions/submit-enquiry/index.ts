@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type,apikey,authorization,x-client-info,idempotency-key' };
+const frontendOrigin = (Deno.env.get('FRONTEND_ORIGINS') || Deno.env.get('PUBLIC_APP_URL') || 'http://localhost:5173').split(',')[0].trim();
+const headers = { 'Access-Control-Allow-Origin': frontendOrigin, 'Access-Control-Allow-Headers': 'content-type,apikey,authorization,x-client-info,idempotency-key' };
 const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 const limits: Record<string, number> = { contact: 5, catering: 3, partnership: 2 };
 const text = (v: unknown, max: number) => typeof v === 'string' && v.trim().length <= max ? v.trim() : null;

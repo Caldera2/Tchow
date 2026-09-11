@@ -14,7 +14,7 @@ type StaffPermission =
 
 type AuthorizationResult = {
   user: { id: string };
-  member: { user_id: string; role: string; is_active: boolean };
+  member: { user_id: string; role: string; is_active: boolean; staff_permissions?: Array<{ permission: string }> };
 };
 
 function decodePayload(token: string): Record<string, unknown> | null {
