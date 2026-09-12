@@ -20,10 +20,17 @@ test('box builder protects against late quote responses and preserves quantities
   const migration = await read('supabase/migrations/20260910001300_box_quote_versioning.sql');
   assert.match(source, /quoteRequest/);
   assert.match(source, /components: selected/);
-  assert.match(source, /quantity: quantities\[componentKey\(item\)\]/);
-  assert.match(source, /const componentKey/);
+  assert.match(source, /quantity: quantities\[item\.product_id\]/);
   assert.match(source, /fresh quote/);
   assert.match(migration, /box_components_bump_configuration/);
   assert.match(migration, /box_pricing_rules_bump_configuration/);
   assert.match(migration, /bump_box_size_version/);
+});
+
+test('box builder has a deliberate empty state and does not expose database errors', async () => {
+  const source = await read('catalogue/DatabaseBoxBuilder.jsx');
+  assert.match(source, /EmptyBuilder/);
+  assert.match(source, /Our boxes are being refreshed/);
+  assert.match(source, /Match each allowance before requesting a server quote/);
+  assert.doesNotMatch(source, /error\.message \|\|/);
 });
