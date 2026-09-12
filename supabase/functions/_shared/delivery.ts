@@ -19,7 +19,15 @@ export const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isDeliveryRequest(value: unknown): value is DeliveryRequest {
   const request = value as Partial<DeliveryRequest>;
-  return Boolean(request && typeof request.serviceAreaId === 'string' && typeof request.slotId === 'string' && typeof request.deliveryDate === 'string' && datePattern.test(request.deliveryDate) && Array.isArray(request.productIds) && request.productIds.every((id) => typeof id === 'string')));
+  return Boolean(
+    request &&
+    typeof request.serviceAreaId === 'string' &&
+    typeof request.slotId === 'string' &&
+    typeof request.deliveryDate === 'string' &&
+    datePattern.test(request.deliveryDate) &&
+    Array.isArray(request.productIds) &&
+    request.productIds.every((id) => typeof id === 'string')
+  );
 }
 
 export function lagosParts(date = new Date()) {
@@ -36,4 +44,3 @@ export function dateIsPast(date: string, now = new Date()) {
 export function slotStartDate(date: string, time: string) {
   return new Date(`${date}T${time.slice(0, 8)}+01:00`);
 }
-

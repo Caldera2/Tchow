@@ -15,6 +15,12 @@ test('security migration uses protected staff records, not user metadata', () =>
   assert.doesNotMatch(authorizationSql, /raw_user_meta_data|user_metadata/);
 });
 
+test('security migration revokes browser execution of definer helpers', async () => {
+  const lockdown = await readFile(new URL('supabase/migrations/20260910002700_lockdown_definer_functions.sql', root), 'utf8');
+  assert.match(lockdown, /revoke execute on function public\.handle_new_user\(\) from public, anon, authenticated/);
+  assert.match(lockdown, /public\.rls_auto_enable\(\)/);
+});
+
 test('server-only records remain denied to browser roles', () => {
   assert.match(sql, /revoke all on public\.payment_attempts, public\.verified_transactions, public\.refunds, public\.notification_outbox, public\.webhook_receipts from anon, authenticated/);
   assert.match(sql, /revoke insert, update, delete on public\.orders, public\.order_items, public\.checkout_snapshots, public\.order_status_history from anon, authenticated/);

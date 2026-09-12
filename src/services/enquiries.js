@@ -9,9 +9,9 @@ export async function submitEnquiry(kind, data, key = idempotencyKey()) {
 
 const tables = { contact: 'contact_enquiries', catering: 'catering_enquiries', partnership: 'partnership_applications' };
 const columns = {
-  contact: 'id,full_name,email,phone,subject,message,status,created_at,updated_at',
-  catering: 'id,full_name,organization,email,phone,event_type,event_date,guest_count,location,budget_range,additional_requirements,status,created_at,updated_at',
-  partnership: 'id,full_name,email,phone,organization,country,pathway,contribution_range,strategic_resources,timeline,additional_notes,status,consent_at,created_at,updated_at',
+  contact: 'id,full_name,email,phone,subject,message,internal_notes,status,created_at,updated_at',
+  catering: 'id,full_name,organization,email,phone,event_type,event_date,guest_count,location,budget_range,additional_requirements,internal_notes,status,created_at,updated_at',
+  partnership: 'id,full_name,email,phone,organization,country,pathway,contribution_range,strategic_resources,timeline,additional_notes,internal_notes,status,consent_at,created_at,updated_at',
 };
 
 export async function listAdminEnquiries(kind, { page = 0, pageSize = 20, status, search } = {}) {

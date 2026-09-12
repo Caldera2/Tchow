@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { authorizeStaff, authorizationResponse } from '../_shared/authorize-staff.ts';
-const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type,apikey,x-client-info' };
+const frontendOrigin = (Deno.env.get('FRONTEND_ORIGINS') || Deno.env.get('PUBLIC_APP_URL') || 'http://localhost:5173').split(',')[0].trim();
+const headers = { 'Access-Control-Allow-Origin': frontendOrigin, 'Access-Control-Allow-Headers': 'authorization,content-type,apikey,x-client-info' };
 const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers });

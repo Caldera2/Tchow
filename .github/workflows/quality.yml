@@ -46,13 +46,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
+          psql "postgresql://postgres@localhost:5432/postgres" --set ON_ERROR_STOP=1 --file supabase/tests/ci-bootstrap.sql
           for file in supabase/migrations/*.sql; do
             psql "postgresql://postgres@localhost:5432/postgres" --set ON_ERROR_STOP=1 --file "$file"
           done
       - name: Run RLS regression harness
         env:
           PGPASSWORD: postgres
-        run: psql "postgresql://postgres@localhost:5432/postgres" --set ON_ERROR_STOP=1 --file supabase/tests/rls_security.sql
+        run: pg_prove --failures --verbose --host localhost --username postgres --dbname postgres supabase/tests/rls_security.sql
 
   edge-functions:
     runs-on: ubuntu-latest

@@ -59,3 +59,44 @@
 
 .auth-page{min-height:65vh;display:grid;place-items:center;padding:80px 6vw}.auth-card{width:min(480px,100%);background:var(--paper);border:1px solid var(--line);padding:38px}.auth-card h1{font:700 clamp(36px,6vw,58px)/.96 var(--display);letter-spacing:-.06em;margin:15px 0}.auth-card>p{color:var(--muted);font-size:12px;line-height:1.7}.auth-card .wide-form{display:grid;gap:16px;margin-top:28px}.auth-card label{display:grid;gap:7px;font-size:10px;font-weight:700}.auth-card input{border:1px solid var(--line);background:var(--cream);padding:12px;font:500 12px var(--body)}.auth-card input:focus{border-color:var(--red);outline:0;box-shadow:0 0 0 3px rgba(181,54,42,.12)}.auth-links{display:flex;justify-content:space-between;gap:12px;margin-top:20px}.auth-links a{color:var(--red);font-size:10px;text-decoration:underline;text-underline-offset:3px}.auth-state{min-height:55vh;text-align:center;padding:90px 6vw}.auth-state h1{font:700 clamp(38px,6vw,68px)/.95 var(--display);letter-spacing:-.06em;margin:14px 0}.auth-state p{color:var(--muted);font-size:12px}.saved-address{display:flex;gap:16px;align-items:center;border:1px solid var(--line);background:var(--paper);padding:14px;margin:10px 0;font-size:11px}.saved-address span{color:var(--muted)}
 @media(max-width:560px){.auth-page{padding:55px 6vw}.auth-card{padding:26px 20px}.auth-links{align-items:flex-start;flex-direction:column}}
+/* Keep the active database-backed hero deterministic. Legacy stylesheets still exist in
+   the repository for reference, so scope the guard to the mounted homepage. */
+.home { background-image: none !important; }
+.home > .hero {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  background: var(--cream) !important;
+  background-image: none !important;
+  opacity: 1 !important;
+}
+.home > .hero::before,
+.home > .hero::after,
+.home > .hero .hero-art::before,
+.home > .hero .hero-art::after {
+  content: none !important;
+  display: none !important;
+  background: transparent !important;
+  background-image: none !important;
+  opacity: 0 !important;
+}
+.home > .hero .hero-copy,
+.home > .hero .hero-art {
+  position: relative;
+  opacity: 1 !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+.home > .hero .hero-copy { z-index: 2; }
+.home > .hero .hero-art { z-index: 1; }
+.home > .hero .hero-art img {
+  position: relative;
+  inset: auto;
+  display: block;
+  width: 100%;
+  height: 570px;
+  object-fit: cover;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}

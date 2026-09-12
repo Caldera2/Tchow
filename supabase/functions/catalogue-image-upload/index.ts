@@ -1,10 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { authorizeStaff, authorizationResponse } from '../_shared/authorize-staff.ts';
+const frontendOrigin = (Deno.env.get('FRONTEND_ORIGINS') || Deno.env.get('PUBLIC_APP_URL') || 'http://localhost:5173').split(',')[0].trim();
 
-const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, idempotency-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
+const corsHeaders = { 'Access-Control-Allow-Origin': frontendOrigin, 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, idempotency-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-const validMagic = (type: string, bytes: Uint8Array) => type === 'image/jpeg' ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff : type === 'image/png' ? bytes.slice(0, 8).every((value, index) => value === [137, 80, 78, 71, 13, 10, 26, 10][index]) : type === 'image/webp' ? new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP' : false;
+const validMagic = (type: string, bytes: Uint8Array) => type === 'image/jpeg'
+  ? bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  : type === 'image/png'
+    ? bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((value, index) => bytes[index] === value)
+    : type === 'image/webp'
+      ? bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP'
+      : false;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -21,7 +29,8 @@ Deno.serve(async (request) => {
   const altText = String(form.get('alt_text') || '').trim();
   const replaceImageId = String(form.get('replace_image_id') || '').trim();
   const file = form.get('file');
-  if (!productId || !altText || !(file instanceof File)) return json({ error: { code: 'invalid_upload', message: 'Product, alt text, and image are required.' } }, 422);
+  if (!uuidPattern.test(productId) || !altText || altText.length > 240 || !(file instanceof File)) return json({ error: { code: 'invalid_upload', message: 'Product, alt text, and image are required.' } }, 422);
+  if (replaceImageId && !uuidPattern.test(replaceImageId)) return json({ error: { code: 'invalid_upload', message: 'The replacement image identifier is invalid.' } }, 422);
   if (file.size < 1 || file.size > 5 * 1024 * 1024 || !extensions[file.type as keyof typeof extensions]) return json({ error: { code: 'invalid_file', message: 'Use a JPEG, PNG, or WebP image up to 5 MB.' } }, 422);
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!validMagic(file.type, bytes)) return json({ error: { code: 'invalid_file_type', message: 'The uploaded bytes do not match the declared image type.' } }, 422);
