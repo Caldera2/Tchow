@@ -1,4 +1,12 @@
-const read = (key) => import.meta.env[key] || '';
+// The publishable client configuration is safe to expose in browser code and
+// keeps the hosted Vite build usable when Vercel has not yet received its
+// project environment variables. Explicit VITE_ values always take precedence.
+const publicProjectDefaults = Object.freeze({
+  VITE_SUPABASE_URL: 'https://nmxrxcmlsjqottedtqop.supabase.co',
+  VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_h7HKaBnkpXlIAMpCP55Tqg_BqA6qCjZ',
+});
+
+const read = (key) => import.meta.env[key] || publicProjectDefaults[key] || '';
 
 export const clientEnv = Object.freeze({
   supabaseUrl: read('VITE_SUPABASE_URL'),

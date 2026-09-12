@@ -13,3 +13,11 @@ test('database homepage hero cannot inherit the legacy image overlay', async () 
   assert.match(guard, /\.home > \.hero::before[\s\S]*display:\s*none\s*!important/);
   assert.match(guard, /\.home > \.hero \.hero-art img\s*\{[\s\S]*mix-blend-mode:\s*normal\s*!important/);
 });
+
+test('hosted builds retain only public Supabase client defaults', async () => {
+  const env = await readFile(new URL('src/config/env.js', root), 'utf8');
+  assert.match(env, /VITE_SUPABASE_URL/);
+  assert.match(env, /VITE_SUPABASE_PUBLISHABLE_KEY/);
+  assert.match(env, /sb_publishable_/);
+  assert.doesNotMatch(env, /SUPABASE_SERVICE_ROLE_KEY|postgresql:\/\//);
+});
