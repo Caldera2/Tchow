@@ -8,7 +8,7 @@ export async function hydrateCatalogueImages(items = []) { return Promise.all(it
 
 export async function listPublishedProducts({ page = 0, pageSize = 12, categoryId, search = '', sort = 'newest' } = {}) {
   const client = requireSupabase();
-  let query = client.from('products').select('id,legacy_key,name,description,price_kobo,currency,preparation_minutes,tags,dietary_information,category_id,categories(name,slug),product_images(id,storage_path,alt_text,sort_order,is_primary)', { count: 'exact' }).eq('status', 'published');
+  let query = client.from('products').select('id,legacy_key,name,description,price_kobo,currency,is_available,preparation_minutes,tags,dietary_information,category_id,categories(name,slug),product_images(id,storage_path,alt_text,sort_order,is_primary)', { count: 'exact' }).eq('status', 'published');
   if (categoryId) query = query.eq('category_id', categoryId);
   if (search.trim()) query = query.or(`name.ilike.%${escapeFilter(search.trim())}%,description.ilike.%${escapeFilter(search.trim())}%`);
   if (sort === 'price-low') query = query.order('price_kobo', { ascending: true });
@@ -21,13 +21,13 @@ export async function listPublishedProducts({ page = 0, pageSize = 12, categoryI
 }
 
 export async function getPublishedProduct(productId) {
-  const { data, error } = await requireSupabase().from('products').select('id,legacy_key,name,description,price_kobo,currency,preparation_minutes,tags,dietary_information,category_id,categories(name,slug),product_images(id,storage_path,alt_text,sort_order,is_primary)').eq('id', productId).eq('status', 'published').maybeSingle();
+  const { data, error } = await requireSupabase().from('products').select('id,legacy_key,name,description,price_kobo,currency,is_available,preparation_minutes,tags,dietary_information,category_id,categories(name,slug),product_images(id,storage_path,alt_text,sort_order,is_primary)').eq('id', productId).eq('status', 'published').maybeSingle();
   if (error) throw error;
   return data ? (await hydrateCatalogueImages([data]))[0] : null;
 }
 
 export async function listRelatedProducts(categoryId, productId, limit = 4) {
-  const { data, error } = await requireSupabase().from('products').select('id,name,description,price_kobo,currency,preparation_minutes,tags,product_images(id,storage_path,alt_text,sort_order,is_primary)').eq('category_id', categoryId).eq('status', 'published').neq('id', productId).order('created_at', { ascending: false }).limit(limit);
+  const { data, error } = await requireSupabase().from('products').select('id,name,description,price_kobo,currency,is_available,preparation_minutes,tags,product_images(id,storage_path,alt_text,sort_order,is_primary)').eq('category_id', categoryId).eq('status', 'published').neq('id', productId).order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
   return hydrateCatalogueImages(data || []);
 }

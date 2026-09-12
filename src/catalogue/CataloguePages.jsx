@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Check, Search } from 'lucide-react';
+import { ArrowRight, Check, Search, SlidersHorizontal, RotateCcw, UtensilsCrossed, Clock, Plus, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import './menu.css';
 import { useAuth } from '../auth/AuthContext';
 import { normalizeCartItem } from '../hooks/useCart';
 import { changeProductStatus, createProduct, deleteProduct, getPublishedProduct, listAdminProducts, listPublishedProducts, listRelatedProducts, setProductAvailability, updateProduct, uploadProductImage } from '../services/catalogue';
@@ -9,10 +11,65 @@ const money = (kobo = 0) => `₦${Math.round(kobo / 100).toLocaleString('en-NG')
 const imageOf = (item) => item.imageUrl || '';
 
 export function DatabaseMenu({ add }) {
-  const [categories, setCategories] = useState([]); const [query, setQuery] = useState(''); const [category, setCategory] = useState(''); const [sort, setSort] = useState('newest'); const [page, setPage] = useState(0); const [result, setResult] = useState({ loading: true, data: [], count: 0, error: '' });
-  useEffect(() => { try { requireSupabase().from('categories').select('id,name,slug').eq('is_public', true).order('sort_order').then(({ data, error }) => { if (!error) setCategories(data || []); }); } catch { setCategories([]); } }, []);
-  useEffect(() => { let active = true; setResult((current) => ({ ...current, loading: true, error: '' })); listPublishedProducts({ page, pageSize: 12, categoryId: category || undefined, search: query, sort }).then((data) => { if (active) setResult({ ...data, loading: false, error: '' }); }).catch((error) => { if (active) setResult({ loading: false, data: [], count: 0, error: error.message || 'Could not load the menu.' }); }); return () => { active = false; }; }, [page, category, query, sort]);
-  return <main className="page menu-page"><section className="menu-hero"><span className="eyebrow">Tchow / Menu</span><h1>Good things, thoughtfully made.</h1><p>Browse the published menu. Availability and prices are provided by the connected catalogue.</p></section><div className="menu-toolbar"><label className="menu-search"><Search size={16}/><span className="sr-only">Search menu</span><input value={query} onChange={(e) => { setPage(0); setQuery(e.target.value); }} placeholder="Search products" /></label><div className="category-tabs"><button className={!category ? 'active' : ''} onClick={() => { setPage(0); setCategory(''); }}>All</button>{categories.map((item) => <button key={item.id} className={category === item.id ? 'active' : ''} onClick={() => { setPage(0); setCategory(item.id); }}>{item.name}</button>)}</div><select className="sort-select" value={sort} onChange={(e) => { setPage(0); setSort(e.target.value); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></div>{result.loading ? <div className="loading-state">Loading the published menu...</div> : result.error ? <div className="error-state" role="alert"><h2>We could not load the menu.</h2><p>{result.error}</p></div> : result.data.length ? <><div className="catalogue-meta"><span>{result.count} published products</span></div><div className="product-grid">{result.data.map((item) => <article className="product-card" key={item.id}><a href={`/menu/${item.id}`}><div className="catalogue-image">{imageOf(item) && <img src={imageOf(item)} alt={item.product_images?.find((image) => image.storage_path)?.alt_text || item.name} />}</div><span className="eyebrow">{item.categories?.name || 'Tchow'}</span><h3>{item.name}</h3><p>{item.description}</p></a><div className="product-card-footer"><strong>{money(item.price_kobo)}</strong><span>{item.preparation_minutes} mins</span><button className="button button-small" disabled={item.is_available === false} onClick={() => add?.(normalizeCartItem(item))}>{item.is_available === false ? 'Unavailable' : 'Add to cart'}</button></div></article>)}</div><div className="pagination"><button disabled={page === 0} onClick={() => setPage((current) => current - 1)}>Previous</button><span>Page {page + 1} of {Math.max(1, Math.ceil(result.count / 12))}</span><button disabled={(page + 1) * 12 >= result.count} onClick={() => setPage((current) => current + 1)}>Next</button></div></> : <div className="empty-state"><h2>No published products found.</h2><p>Try another search or category.</p></div>}</main>;
+  const [categories, setCategories] = useState([]);
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('');
+  const [sort, setSort] = useState('newest');
+  const [page, setPage] = useState(0);
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState({ loading: true, data: [], count: 0, error: false });
+  const [added, setAdded] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    try {
+      requireSupabase().from('categories').select('id,name,slug').eq('is_public', true).order('sort_order')
+        .then(({ data, error }) => { if (active) setCategories(error ? [] : data || []); });
+    } catch { setCategories([]); }
+    return () => { active = false; };
+  }, [retry]);
+
+  useEffect(() => {
+    let active = true;
+    setResult((current) => ({ ...current, loading: true, error: false }));
+    const timer = setTimeout(() => {
+      listPublishedProducts({ page, pageSize: 12, categoryId: category || undefined, search: query, sort })
+        .then((data) => { if (active) setResult({ ...data, loading: false, error: false }); })
+        .catch(() => { if (active) setResult({ loading: false, data: [], count: 0, error: true }); });
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [page, category, query, sort, retry]);
+
+  const resetFilters = () => { setQuery(''); setCategory(''); setPage(0); };
+  return <main className="page menu-page modern-menu">
+    <section className="menu-intro">
+      <div className="menu-intro-copy">
+        <span className="eyebrow">THE TCHOW MENU</span>
+        <h1>A little craving.<br />A lot of <em>good taste.</em></h1>
+        <p>Find your next favourite bite. Explore our menu, pick what you love, and make it a Tchow moment.</p>
+        <a className="menu-browse-link" href="#menu-results">Explore the menu <ArrowRight size={17} /></a>
+      </div>
+      <div className="menu-intro-art">
+        <img src="/assets/small_chops.jpg" alt="A selection of golden small chops" fetchPriority="high" />
+        <span className="menu-art-label">GOOD FOOD. GREAT MOMENTS.</span>
+      </div>
+    </section>
+
+    <section className="menu-browser" aria-label="Browse the menu" id="menu-results">
+      <div className="menu-browser-heading"><div><span className="eyebrow">FIND YOUR FAVOURITES</span><h2>What are you craving?</h2></div><Link to="/build-your-box" className="menu-box-link">Make it your own. Build a box <ArrowRight size={16} /></Link></div>
+      <div className="menu-controls">
+        <label className="menu-search"><Search size={20} aria-hidden="true" /><span className="sr-only">Search menu</span><input type="search" maxLength={120} value={query} onChange={(e) => { setPage(0); setQuery(e.target.value); }} placeholder="Search for something delicious…" />{query && <button onClick={() => { setQuery(''); setPage(0); }} aria-label="Clear search"><X size={17} /></button>}</label>
+        <label className="menu-sort"><SlidersHorizontal size={18} aria-hidden="true" /><span className="sr-only">Sort menu</span><select value={sort} onChange={(e) => { setPage(0); setSort(e.target.value); }}><option value="newest">Newest first</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></label>
+      </div>
+      <div className="menu-category-row"><div className="menu-category-pills" aria-label="Filter by category"><button aria-pressed={!category} className={!category ? 'active' : ''} onClick={() => { setPage(0); setCategory(''); }}><UtensilsCrossed size={15} />All bites</button>{categories.map((item) => <button key={item.id} aria-pressed={category === item.id} className={category === item.id ? 'active' : ''} onClick={() => { setPage(0); setCategory(item.id); }}>{item.name}</button>)}</div>{(query || category) && <button className="menu-reset" onClick={resetFilters}>Clear filters</button>}</div>
+      <div aria-live="polite" className="sr-only">{added}</div>
+      {result.loading ? <div role="status" aria-label="Loading menu" className="menu-skeleton-grid">{[0, 1, 2].map((n) => <div className="menu-skeleton" key={n}><div /><span /><span /></div>)}</div>
+        : result.error ? <div className="menu-feedback" role="alert"><span className="menu-feedback-icon"><UtensilsCrossed size={28} /></span><span className="eyebrow">A LITTLE PAUSE</span><h3>The menu is taking a moment.</h3><p>We couldn’t load the menu right now. Please try again, or get in touch and we’ll help you out.</p><div className="menu-feedback-actions"><button className="button button-primary" onClick={() => setRetry((value) => value + 1)}><RotateCcw size={16} />Try again</button><Link className="menu-contact-link" to="/contact">Contact us <ArrowRight size={15} /></Link></div></div>
+        : result.data.length ? <><div className="menu-result-count">{result.count} {result.count === 1 ? 'bite' : 'bites'} to discover</div><div className="menu-products">{result.data.map((item) => <article className="menu-product" key={item.id}><Link to={`/menu/${item.id}`} className="menu-product-link"><div className="menu-product-image">{imageOf(item) ? <img src={imageOf(item)} alt={item.product_images?.[0]?.alt_text || item.name} loading="lazy" /> : <UtensilsCrossed size={36} aria-hidden="true" />}{item.is_available === false && <span className="menu-unavailable">Currently unavailable</span>}</div><div className="menu-product-copy"><span className="eyebrow">{item.categories?.name || 'Tchow favourites'}</span><h3>{item.name}</h3><p>{item.description}</p></div></Link><div className="menu-product-bottom"><div><strong>{money(item.price_kobo)}</strong>{item.preparation_minutes > 0 && <span><Clock size={13} />{item.preparation_minutes} min prep</span>}</div><button disabled={item.is_available === false || !add} aria-label={`Add ${item.name} to cart`} onClick={() => { add?.(normalizeCartItem(item)); setAdded(`${item.name} added to your cart.`); }}><Plus size={18} />Add</button></div></article>)}</div><nav className="menu-pagination" aria-label="Menu pages"><button disabled={page === 0} onClick={() => setPage((current) => current - 1)}>Previous</button><span>Page {page + 1} of {Math.max(1, Math.ceil(result.count / 12))}</span><button disabled={(page + 1) * 12 >= result.count} onClick={() => setPage((current) => current + 1)}>Next</button></nav></>
+        : <div className="menu-feedback"><span className="menu-feedback-icon"><Search size={28} /></span><h3>{query || category ? 'No bites found this time.' : 'Something good is on its way.'}</h3><p>{query || category ? 'Try a different search or explore all our categories.' : 'Our menu will appear here once it’s ready. Check back soon or contact us for enquiries.'}</p>{query || category ? <button className="button button-primary" onClick={resetFilters}>Explore all bites</button> : <Link className="button button-primary" to="/contact">Contact us <ArrowRight size={16} /></Link>}</div>}
+    </section>
+    <aside className="menu-bottom-note"><span>YOUR PEOPLE. YOUR PICKS. YOUR BOX.</span><Link to="/build-your-box">Put something special together <ArrowRight size={18} /></Link></aside>
+  </main>;
 }
 
 export function DatabaseProductDetail({ id, add }) {
