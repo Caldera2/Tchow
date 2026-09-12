@@ -1,8 +1,9 @@
 # Supabase setup
 
 This repository is linked to the Tchow Supabase project by the public project
-reference `nmxrxcmlsjqottedtqop`. The project URL is public configuration; keys
-and database credentials are not committed.
+reference `nmxrxcmlsjqottedtqop`. The project URL and publishable browser key
+are public configuration. Private keys and database credentials are never
+committed.
 
 ## Local frontend
 
@@ -10,6 +11,12 @@ and database credentials are not committed.
 2. Set `VITE_SUPABASE_PUBLISHABLE_KEY` to the project's `sb_publishable_...`
    key in your local environment or deployment provider.
 3. Run `npm run dev`.
+
+The client contains public project defaults so a Vite deployment remains usable
+when a provider has not yet received its build variables. Set the two `VITE_`
+variables in Vercel Project Settings for Production, Preview, and Development
+to override those defaults, then redeploy. Vite embeds these values at build
+time; changing them does not affect an already-built deployment.
 
 Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` may be sent to the
 browser. Never put `SUPABASE_SERVICE_ROLE_KEY`, a database URL, payment keys, or
