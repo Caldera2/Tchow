@@ -22,10 +22,10 @@ function BuilderHeading({ boxCount }) {
     <div className="builder-heading">
       <div className="builder-heading-top">
         <span className="eyebrow">Build your box</span>
-        <span className="builder-live-status"><i aria-hidden="true" /> Live server menu{boxCount ? ` · ${boxCount} sizes` : ''}</span>
+        {boxCount > 0 && <span className="builder-live-status"><i aria-hidden="true" /> {boxCount} {boxCount === 1 ? 'size available' : 'sizes available'}</span>}
       </div>
       <h1>Build a box that fits <em>your moment.</em></h1>
-      <p>Choose a size, fill each allowance, and get a price calculated from today&apos;s available menu.</p>
+      <p>Choose your size, pick your favourites, and review your total before adding your box to the cart.</p>
       <div className="builder-steps" aria-label="Box builder steps">
         <span className="active"><b>01</b> Choose a size</span>
         <span><b>02</b> Fill your allowances</span>
@@ -48,14 +48,15 @@ function EmptyBuilder({ error, onRetry }) {
           <div className="builder-empty-copy">
             <span className="eyebrow">{error ? 'A quick refresh' : 'Almost ready'}</span>
             <h2>{error ? 'The box menu needs a moment.' : 'Our boxes are being refreshed.'}</h2>
-            <p>{error || 'There are no published box options available right now. Once the team publishes a size, it will appear here with live availability and pricing.'}</p>
+            <p>{error || 'Custom boxes are unavailable right now. Explore the menu or get in touch to plan something for your table.'}</p>
             <div className="builder-empty-actions">
               <button className="button button-primary" type="button" onClick={onRetry}>
                 <RefreshCw size={16} /> Try again
               </button>
               <Link className="button button-outline" to="/contact">Talk to the concierge <ArrowRight size={16} /></Link>
+              <Link className="text-link" to="/menu">Explore the menu <ArrowRight size={16} /></Link>
             </div>
-            <span className="builder-empty-note"><Check size={14} /> Prices are always confirmed by the server before checkout.</span>
+            <span className="builder-empty-note"><Check size={14} /> Review your total before checkout.</span>
           </div>
         </section>
         <aside className="builder-summary builder-summary-empty">
@@ -64,7 +65,7 @@ function EmptyBuilder({ error, onRetry }) {
           <p>Pick a base, make it yours, then add the fresh quote to your cart.</p>
           <div className="summary-steps">
             <span><b>01</b><strong>Pick a size</strong><small>Choose the moment you are making.</small></span>
-            <span><b>02</b><strong>Choose your favourites</strong><small>Fill the published snack, drink and dessert allowances.</small></span>
+            <span><b>02</b><strong>Choose your favourites</strong><small>Add snacks, drinks and something sweet.</small></span>
             <span><b>03</b><strong>Get a live total</strong><small>Prices and availability are checked at the source.</small></span>
           </div>
         </aside>
@@ -111,10 +112,9 @@ export function DatabaseBoxBuilder({ add }) {
   const components = useMemo(() => (box?.box_components || []).filter((item) => productFor(item)), [box]);
   const selected = components
     .filter((item) => quantities[componentKey(item)] > 0)
-    // quantity: quantities[item.product_id] (legacy single-key lookup) is intentionally replaced by the scoped key above.
     .map((item) => ({ productId: item.product_id, componentType: item.component_type, quantity: quantities[componentKey(item)] }));
   const totals = selected.reduce((result, item) => ({ ...result, [item.componentType]: (result[item.componentType] || 0) + item.quantity }), {});
-  const requiredMissing = components.some((item) => item.required && (quantities[componentKey(item)] || 0) < Math.max(1, Number(item.min_quantity || 0)));
+  const requiredMissing = (box?.box_components || []).some((item) => item.required && (!productFor(item) || (quantities[componentKey(item)] || 0) < Math.max(1, Number(item.min_quantity || 0))));
   const allowancesComplete = Boolean(box) && !requiredMissing && TYPES.every((type) => (totals[type] || 0) === Number(box[`${type}_allowance`] || 0));
   const remainingItems = TYPES.reduce((sum, type) => sum + Math.max(0, Number(box?.[`${type}_allowance`] || 0) - (totals[type] || 0)), 0);
 
@@ -122,7 +122,7 @@ export function DatabaseBoxBuilder({ add }) {
     quoteRequest.current += 1;
     setSizeId(id);
     setQuantities({});
-    setPriceChange(quote ? { from: quote.total_kobo, acknowledged: false } : null);
+    setPriceChange((previous) => quote ? { from: quote.total_kobo, acknowledged: false } : previous ? { from: previous.from, acknowledged: false } : null);
     setQuote(null);
     setState((current) => ({ ...current, busy: false, error: '', saved: false }));
   };
@@ -136,7 +136,7 @@ export function DatabaseBoxBuilder({ add }) {
     if (delta < 0 && current > 0 && current <= min) next = 0;
     else next = Math.max(min, Math.min(max, next));
     quoteRequest.current += 1;
-    setPriceChange(quote ? { from: quote.total_kobo, acknowledged: false } : null);
+    setPriceChange((previous) => quote ? { from: quote.total_kobo, acknowledged: false } : previous ? { from: previous.from, acknowledged: false } : null);
     setQuote(null);
     setState((currentState) => ({ ...currentState, busy: false, error: '' }));
     setQuantities((currentState) => ({ ...currentState, [key]: next }));
@@ -168,7 +168,7 @@ export function DatabaseBoxBuilder({ add }) {
   const addQuotedBox = () => {
     const currentKey = `${sizeId}:${JSON.stringify(selected)}`;
     const quotedKey = `${quote?.box_size_id}:${JSON.stringify((quote?.components_snapshot || []).map((item) => ({ productId: item.product_id, componentType: item.component_type, quantity: item.quantity })))}`;
-    if (!quote || currentKey !== quotedKey || new Date(quote.expires_at) <= new Date() || (priceChange && !priceChange.acknowledged)) {
+    if (!quote || currentKey !== quotedKey || !Number.isFinite(Date.parse(quote.expires_at)) || Date.parse(quote.expires_at) <= Date.now() || (priceChange && !priceChange.acknowledged)) {
       setQuote(null);
       setState((current) => ({ ...current, error: 'This quote is expired, changed, or not confirmed. Request a fresh quote.' }));
       return;
@@ -205,7 +205,7 @@ export function DatabaseBoxBuilder({ add }) {
             <div><span className="eyebrow">01 / Pick a base</span><h2>Start with your box.</h2></div>
             <span className="builder-count">{boxes.length} {boxes.length === 1 ? 'size' : 'sizes'}</span>
           </div>
-          <div className="choice-grid" role="list" aria-label="Box sizes">
+          <div className="choice-grid" role="group" aria-label="Box sizes">
             {boxes.map((item, index) => (
               <button className={`choice-card ${sizeId === item.id ? 'selected' : ''}`} type="button" key={item.id} onClick={() => setSize(item.id)} aria-pressed={sizeId === item.id}>
                 <span className="choice-card-index">0{index + 1}</span>
@@ -252,7 +252,7 @@ export function DatabaseBoxBuilder({ add }) {
           {state.error && <p className="form-error builder-error" role="alert">{state.error}</p>}
           <div className="builder-actions">
             <div className="builder-actions-primary"><button className="button button-primary" type="button" disabled={state.busy || !allowancesComplete} onClick={getQuote}>{state.busy ? 'Calculating…' : allowancesComplete ? 'Get server quote' : 'Complete your selections'} <ArrowRight size={16} /></button><span className="builder-quote-hint">{allowancesComplete ? 'Your price will be checked against the live menu.' : `${remainingItems} ${remainingItems === 1 ? 'item' : 'items'} left to complete the allowances.`}</span></div>
-            {priceChange && <label className="checkbox builder-price-change"><input type="checkbox" checked={priceChange.acknowledged} onChange={(event) => setPriceChange((current) => ({ ...current, acknowledged: event.target.checked }))} /> The refreshed quote changed from {money(priceChange.from)} to {money(priceChange.to)}. I confirm the new amount.</label>}
+            {priceChange?.to != null && <label className="checkbox builder-price-change"><input type="checkbox" checked={priceChange.acknowledged} onChange={(event) => setPriceChange((current) => ({ ...current, acknowledged: event.target.checked }))} /> The refreshed quote changed from {money(priceChange.from)} to {money(priceChange.to)}. I confirm the new amount.</label>}
             {quote && <button className="button button-outline" type="button" onClick={addQuotedBox}>Add quoted box to cart</button>}
           </div>
         </section>
