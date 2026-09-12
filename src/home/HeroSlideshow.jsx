@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Pause, Play } from 'lucide-react';
 import { heroSlides, startHeroRotation } from './heroSlides.mjs';
 
 export function HeroSlideshow() {
   const [slide, setSlide] = useState(0);
-  const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [paused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   useEffect(() => {
     if (paused) return;
     return startHeroRotation(() => setSlide((current) => (current + 1) % heroSlides.length));
@@ -18,7 +17,6 @@ export function HeroSlideshow() {
     <img src={heroSlides[slide].src} alt={heroSlides[slide].alt} fetchPriority="high" />
     <div className="hero-slide-controls">
       <span>{String(slide + 1).padStart(2, '0')} / {String(heroSlides.length).padStart(2, '0')}</span>
-      <button type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? 'Play slideshow' : 'Pause slideshow'}>{paused ? <Play size={15} /> : <Pause size={15} />}{paused ? 'Play' : 'Pause'}</button>
     </div>
   </div>;
 }
