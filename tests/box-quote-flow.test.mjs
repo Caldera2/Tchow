@@ -20,7 +20,8 @@ test('box builder protects against late quote responses and preserves quantities
   const migration = await read('supabase/migrations/20260910001300_box_quote_versioning.sql');
   assert.match(source, /quoteRequest/);
   assert.match(source, /components: selected/);
-  assert.match(source, /quantity: quantities\[item\.product_id\]/);
+  assert.match(source, /quantity: quantities\[componentKey\(item\)\]/);
+  assert.match(source, /const componentKey/);
   assert.match(source, /fresh quote/);
   assert.match(migration, /box_components_bump_configuration/);
   assert.match(migration, /box_pricing_rules_bump_configuration/);
